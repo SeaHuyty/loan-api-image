@@ -1,0 +1,6 @@
+{
+  "version": "v1.0.0",
+  "intercept": 0.02,
+  "amount_weight": 0.20,
+  "term_weight": 0.10
+}

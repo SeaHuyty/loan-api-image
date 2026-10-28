@@ -1,0 +1,45 @@
+services:
+  api:
+    image: seahuyty/loan-api:1.0.0
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "8002:8000"
+    environment:
+      DATABASE_URL: postgresql://loans:loans@db:5432/loans
+      MODEL_PATH: /usr/src/app/model/credit_model.json
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:15.1
+    environment:
+      POSTGRES_USER: loans
+      POSTGRES_PASSWORD: loans
+      POSTGRES_DB: loans
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loans"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # Run the tests with: docker compose --profile test run --rm tests
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: pytest .
+    environment:
+      DATABASE_URL: postgresql://loans:loans@db:5432/loans
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

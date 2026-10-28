@@ -1,0 +1,318 @@
+openapi: 3.0.3
+info:
+  title: Loan Application Service API
+  version: 1.0.0
+  description: Submit and track microfinance loan applications.
+servers:
+  - url: https://loans.example.com/api/v1
+security:
+  - bearerAuth: []
+paths:
+  /applications:
+    get:
+      summary: List applications
+      tags: [applications]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter applications by their current status
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+            example: pending
+        - name: province
+          in: query
+          required: false
+          description: Filter applications by the borrower's province
+          schema:
+            type: string
+            example: Kampong Cham
+        - name: limit
+          in: query
+          required: false
+          description: Number of records to return per page
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+            example: 20
+        - name: after
+          in: query
+          required: false
+          description: Cursor for pagination indicating the last seen item ID
+          schema:
+            type: string
+            example: "7781"
+      responses:
+        '200':
+          description: A list of applications matching the criteria
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    description: List of loan applications
+                    items:
+                      $ref: '#/components/schemas/Application'
+                  next_cursor:
+                    type: string
+                    nullable: true
+                    description: Cursor for fetching the next page of results
+                    example: "7795"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Submit a loan application
+      tags: [applications]
+      requestBody:
+        required: true
+        description: Loan application submission payload
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplicationCreate'
+      responses:
+        '201':
+          description: Application created successfully
+          headers:
+            Location:
+              description: URL of the newly created application resource
+              schema:
+                type: string
+                example: https://loans.example.com/api/v1/applications/7781
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: The values break a business rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /applications/{application_id}:
+    get:
+      summary: Get one application
+      tags: [applications]
+      parameters:
+        - name: application_id
+          in: path
+          required: true
+          description: Unique identifier of the loan application
+          schema:
+            type: integer
+            example: 7781
+      responses:
+        '200':
+          description: The application details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No application found with this identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      summary: Update application status
+      tags: [applications]
+      parameters:
+        - name: application_id
+          in: path
+          required: true
+          description: Unique identifier of the loan application to update
+          schema:
+            type: integer
+            example: 7781
+      requestBody:
+        required: true
+        description: New status payload for the loan application
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, approved, rejected]
+                  description: The updated status for the application
+                  example: approved
+      responses:
+        '200':
+          description: Application status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No application found with this identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Application has already been decided and cannot be modified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Invalid status transition or business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /borrowers/{borrower_id}/applications:
+    get:
+      summary: List applications for a specific borrower
+      tags: [borrowers, applications]
+      parameters:
+        - name: borrower_id
+          in: path
+          required: true
+          description: Unique identifier of the borrower
+          schema:
+            type: integer
+            example: 1042
+      responses:
+        '200':
+          description: Nested list of loan applications belonging to the borrower
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Application'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No borrower found with this identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /applications/{application_id}/predictions:
+    post:
+      summary: Create a prediction for an application
+      tags: [predictions, applications]
+      parameters:
+        - name: application_id
+          in: path
+          required: true
+          description: Unique identifier of the loan application to score
+          schema:
+            type: integer
+            example: 7781
+      responses:
+        '201':
+          description: Credit default prediction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prediction'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No application found with this identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  responses:
+    Unauthorized:
+      description: Authentication information is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    ApplicationCreate:
+      type: object
+      required: [borrower_id, amount_usd, term_months]
+      properties:
+        borrower_id:
+          type: integer
+          description: Unique identifier of the borrower applying for the loan
+          example: 1042
+        amount_usd:
+          type: integer
+          minimum: 100
+          maximum: 5000
+          description: Requested loan amount in US dollars
+          example: 1500
+        term_months:
+          type: integer
+          enum: [3, 6, 12, 18, 24]
+          description: Repayment duration in months
+          example: 12
+    Application:
+      allOf:
+        - $ref: '#/components/schemas/ApplicationCreate'
+        - type: object
+          properties:
+            id:
+              type: integer
+              description: Unique identifier for the loan application record
+              example: 7781
+            status:
+              type: string
+              enum: [pending, approved, rejected]
+              description: Current approval status of the loan application
+              example: pending
+            submitted_at:
+              type: string
+              format: date-time
+              description: Timestamp when the application was originally submitted
+              example: "2026-10-26T08:30:00Z"
+    Prediction:
+      type: object
+      required: [id, application_id, default_probability, model_version, created_at]
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the prediction record
+          example: 501
+        application_id:
+          type: integer
+          description: Identifier of the loan application being scored
+          example: 7781
+        default_probability:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Calculated statistical probability of loan default (0.0 to 1.0)
+          example: 0.12
+        model_version:
+          type: string
+          description: Version identifier of the machine learning model used
+          example: "v2.1.0"
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the prediction was generated
+          example: "2026-10-26T08:35:00Z"
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message explaining the failure reason
+          example: amount_usd must be between 100 and 5000
