@@ -18,6 +18,8 @@ borrowers = Table(
     Column("id", Integer, primary_key=True),
     Column("name", String(100), nullable=False),
     Column("province", String(100), nullable=False),
+    Column("monthly_income_usd", Float, nullable=False, server_default="400"),
+    Column("late_payments", Integer, nullable=False, server_default="0"),
 )
 
 applications = Table(

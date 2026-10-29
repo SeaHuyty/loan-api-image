@@ -1,5 +1,7 @@
 from typing import List, Optional
 
+from sqlalchemy import func, select
+
 from app.db import database
 from app.services import scoring
 from app.models.loan import applications, borrowers, predictions
@@ -63,11 +65,26 @@ async def update_status(application_id: int, status: str):
 
 
 async def create_prediction(application) -> dict:
-    probability = scoring.score(application["amount_usd"], application["term_months"])
+    borrower = await database.fetch_one(
+        borrowers.select().where(borrowers.c.id == application["borrower_id"])
+    )
+    previous_loans = await database.fetch_val(
+        select([func.count()]).select_from(applications).where(
+            (applications.c.borrower_id == application["borrower_id"])
+            & (applications.c.id < application["id"])
+        )
+    )
+    probability = await scoring.score({
+        "amount_usd": application["amount_usd"],
+        "term_months": application["term_months"],
+        "monthly_income_usd": float(borrower["monthly_income_usd"]),
+        "previous_loans": previous_loans,
+        "late_payments": borrower["late_payments"],
+    })
     query = predictions.insert().values(
         application_id=application["id"],
         default_probability=probability,
-        model_version=scoring.model_version(),
+        model_version=await scoring.model_version(),
     )
     prediction_id = await database.execute(query)
     return await database.fetch_one(

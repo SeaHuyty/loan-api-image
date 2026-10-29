@@ -127,3 +127,11 @@ def test_create_prediction_missing(client):
     r = client.post(f"{BASE}/applications/424242/predictions")
     assert r.status_code == 404
     assert r.json() == {"detail": "Application not found"}
+
+
+def test_health(client):
+    r = client.get("/health")  # no auth needed
+    assert r.status_code in (200, 503)
+    body = r.json()
+    assert set(body) == {"status", "database", "scoring_server", "model_version"}
+    assert body["database"] is True

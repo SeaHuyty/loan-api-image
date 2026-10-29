@@ -1,8 +1,14 @@
 CREATE TABLE IF NOT EXISTS borrowers (
     id        INTEGER PRIMARY KEY,
     name      VARCHAR(100) NOT NULL,
-    province  VARCHAR(100) NOT NULL
+    province  VARCHAR(100) NOT NULL,
+    monthly_income_usd  DOUBLE PRECISION NOT NULL DEFAULT 400,
+    late_payments       INTEGER NOT NULL DEFAULT 0
 );
+
+-- for databases created before these model inputs existed
+ALTER TABLE borrowers ADD COLUMN IF NOT EXISTS monthly_income_usd DOUBLE PRECISION NOT NULL DEFAULT 400;
+ALTER TABLE borrowers ADD COLUMN IF NOT EXISTS late_payments INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS applications (
     id            SERIAL PRIMARY KEY,

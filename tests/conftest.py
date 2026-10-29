@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 from starlette.testclient import TestClient
 
-from app.db import DATABASE_URL
+from app.db import DATABASE_URL, IS_SQLITE
 from main import app
 
 AUTH = {"Authorization": "Bearer test-token"}
@@ -15,7 +15,11 @@ def client():
         yield c
     engine = create_engine(DATABASE_URL)
     with engine.begin() as conn:
-        conn.exec_driver_sql("TRUNCATE predictions, applications RESTART IDENTITY CASCADE")
+        if IS_SQLITE:
+            conn.exec_driver_sql("DELETE FROM predictions")
+            conn.exec_driver_sql("DELETE FROM applications")
+        else:
+            conn.exec_driver_sql("TRUNCATE predictions, applications RESTART IDENTITY CASCADE")
     engine.dispose()
 
 

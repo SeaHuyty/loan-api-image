@@ -14,6 +14,7 @@ from app.schemas.loan import (
 )
 from app.db import ensure_connected
 from app.services import loan as service
+from app.services.scoring import ScoringUnavailable
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -147,4 +148,7 @@ async def create_prediction(
     application = await service.get_application(application_id)
     if application is None:
         raise HTTPException(status_code=404, detail="Application not found")
-    return await service.create_prediction(application)
+    try:
+        return await service.create_prediction(application)
+    except ScoringUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc))

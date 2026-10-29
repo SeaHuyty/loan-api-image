@@ -1,6 +1,11 @@
-databases[postgresql]==0.6.2
+databases[postgresql,sqlite]==0.6.2
 SQLAlchemy==1.4.41
 asyncpg==0.27.0
 fastapi==0.87.0
 uvicorn==0.20.0
 anyio<4
+httpx==0.23.1
+mlflow==3.5.1
+scikit-learn==1.9.1
+matplotlib==3.11.2
+tqdm==4.70.1
