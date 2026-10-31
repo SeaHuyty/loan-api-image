@@ -123,6 +123,16 @@ def test_create_prediction(client, make_application):
     assert body["model_version"]
 
 
+def test_prediction_is_logged_without_personal_data(client, make_application, caplog):
+    app = make_application()
+    with caplog.at_level("INFO", logger="uvicorn.error"):
+        body = client.post(f"{BASE}/applications/{app['id']}/predictions").json()
+    line = next(r.getMessage() for r in caplog.records if r.getMessage().startswith("prediction "))
+    assert f"application_id={app['id']}" in line
+    assert f"model_version={body['model_version']}" in line
+    assert "borrower" not in line and "income" not in line
+
+
 def test_create_prediction_missing(client):
     r = client.post(f"{BASE}/applications/424242/predictions")
     assert r.status_code == 404
