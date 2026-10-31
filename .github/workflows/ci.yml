@@ -65,4 +65,4 @@ jobs:
           API_URL: ${{ vars.API_URL }}
           API_KEY: ${{ secrets.API_KEY }}
           EXPECTED_COMMIT: ${{ github.sha }}
-        run: python scripts/smoke_test.py
+        run: python scripts/smoke_check.py
