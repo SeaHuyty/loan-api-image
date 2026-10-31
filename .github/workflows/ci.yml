@@ -21,6 +21,21 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
 
+  scoring-image:
+    # Builds and runs the scoring image so a broken dependency set or model fails before deploy.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f Dockerfile.scoring -t loan-scoring .
+      - run: docker run -d --name scoring -p 5001:5001 loan-scoring
+      - name: Wait for /ping and score the known applicant
+        run: |
+          for i in $(seq 1 30); do curl -fs localhost:5001/ping && break; sleep 2; done
+          curl -fs localhost:5001/ping || { docker logs scoring; exit 1; }
+          curl -fs localhost:5001/invocations -H 'Content-Type: application/json' \
+            -d '{"dataframe_split":{"columns":["amount_usd","term_months","monthly_income_usd","previous_loans","late_payments"],"data":[[1500,12,400.0,0,0]]}}' \
+            | tee /dev/stderr | grep -q '0.0178'
+
   secrets:
     runs-on: ubuntu-latest
     steps:
@@ -34,7 +49,7 @@ jobs:
   deploy:
     # Only the pipeline deploys: main, after tests and the secret scan pass.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [test, secrets]
+    needs: [test, scoring-image, secrets]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

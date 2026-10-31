@@ -1,2 +1,7 @@
 mlflow==3.5.1
 scikit-learn==1.9.1
+# mlflow's scoring server calls FastAPI().route(), which newer FastAPI/Starlette removed
+fastapi==0.87.0
+starlette==0.21.0
+uvicorn==0.20.0
+anyio<4

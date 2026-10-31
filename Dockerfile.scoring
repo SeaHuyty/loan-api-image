@@ -5,7 +5,8 @@ WORKDIR /usr/src/app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    HOME=/tmp
+    HOME=/tmp \
+    MLFLOW_TRACKING_URI=file:///tmp/mlruns
 
 COPY requirements-scoring.txt .
 RUN pip install --no-cache-dir -r requirements-scoring.txt
