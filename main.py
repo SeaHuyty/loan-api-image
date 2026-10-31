@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -42,6 +43,11 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
     return JSONResponse(status_code=422, content={"detail": message})
 
 
+@app.get("/live", tags=["health"], summary="Process is up (no dependencies checked)")
+async def live():
+    return {"status": "ok"}
+
+
 @app.get("/health", tags=["health"], summary="Service health")
 async def health():
     database_ok = await ensure_connected()
@@ -58,6 +64,7 @@ async def health():
             "database": database_ok,
             "scoring_server": scoring_ok,
             "model_version": version,
+            "commit": os.getenv("RENDER_GIT_COMMIT"),  # set by Render; lets the pipeline see what is live
         },
     )
 

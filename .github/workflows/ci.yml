@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      SCORING_STUB: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    # Only the pipeline deploys: main, after tests and the secret scan pass.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, secrets]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trigger Render deploys
+        env:
+          HOOK_SCORING: ${{ secrets.RENDER_DEPLOY_HOOK_SCORING }}
+          HOOK_API: ${{ secrets.RENDER_DEPLOY_HOOK_API }}
+        run: |
+          curl -fsS -o /dev/null "${HOOK_SCORING}&ref=${GITHUB_SHA}"
+          curl -fsS -o /dev/null "${HOOK_API}&ref=${GITHUB_SHA}"
+      - name: Smoke test the live API
+        env:
+          API_URL: ${{ vars.API_URL }}
+          API_KEY: ${{ secrets.API_KEY }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: python scripts/smoke_test.py

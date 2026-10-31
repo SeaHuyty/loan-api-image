@@ -1,11 +1,36 @@
+import os
+
 import pytest
 from sqlalchemy import create_engine
 from starlette.testclient import TestClient
 
 from app.db import DATABASE_URL, IS_SQLITE
+from app.services import scoring
 from main import app
 
 AUTH = {"Authorization": "Bearer test-token"}
+
+
+@pytest.fixture(autouse=True)
+def stub_scoring(monkeypatch):
+    """CI has no MLflow servers; SCORING_STUB=1 swaps in canned answers."""
+    if os.getenv("SCORING_STUB") != "1":
+        return
+
+    async def load():
+        scoring._version = "stub-v0"
+
+    async def model_version():
+        return "stub-v0"
+
+    async def ping():
+        return True
+
+    async def score(features):
+        return 0.1
+
+    for fn in (load, model_version, ping, score):
+        monkeypatch.setattr(scoring, fn.__name__, fn)
 
 
 @pytest.fixture

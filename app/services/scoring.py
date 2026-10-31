@@ -9,6 +9,7 @@ SCORING_URL = os.getenv("SCORING_URL", "http://127.0.0.1:5001")
 TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
 MODEL_NAME = os.getenv("MODEL_NAME", "loan-default")
 MODEL_ALIAS = os.getenv("MODEL_ALIAS", "champion")
+MODEL_VERSION = os.getenv("MODEL_VERSION")  # set when there is no registry (hosted deploy)
 
 FEATURES = ["amount_usd", "term_months", "monthly_income_usd", "previous_loans", "late_payments"]
 
@@ -22,6 +23,9 @@ class ScoringUnavailable(Exception):
 async def load():
     """Look up which registry version the alias points to (the scoring server serves that model)."""
     global _version
+    if MODEL_VERSION:
+        _version = MODEL_VERSION
+        return
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(

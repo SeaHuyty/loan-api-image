@@ -1,3 +1,5 @@
+import hmac
+import os
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
@@ -22,7 +24,12 @@ bearer = HTTPBearer(auto_error=False)
 def require_auth(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer),
 ):
-    if credentials is None or not credentials.credentials:
+    expected = os.getenv("API_KEY")  # unset locally: any non-empty token is accepted
+    if (
+        credentials is None
+        or not credentials.credentials
+        or (expected and not hmac.compare_digest(credentials.credentials, expected))
+    ):
         raise HTTPException(
             status_code=401,
             detail="Authentication information is missing or invalid",

@@ -133,5 +133,15 @@ def test_health(client):
     r = client.get("/health")  # no auth needed
     assert r.status_code in (200, 503)
     body = r.json()
-    assert set(body) == {"status", "database", "scoring_server", "model_version"}
+    assert set(body) == {"status", "database", "scoring_server", "model_version", "commit"}
     assert body["database"] is True
+
+
+def test_live(client):
+    assert client.get("/live").json() == {"status": "ok"}
+
+
+def test_api_key_enforced(client, monkeypatch):
+    monkeypatch.setenv("API_KEY", "s3cret")
+    assert client.get(f"{BASE}/applications").status_code == 401  # test-token is wrong
+    assert client.get(f"{BASE}/applications", headers={"Authorization": "Bearer s3cret"}).status_code == 200
