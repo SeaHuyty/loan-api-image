@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 
 from sqlalchemy import func, select
@@ -5,6 +6,8 @@ from sqlalchemy import func, select
 from app.db import database
 from app.services import scoring
 from app.models.loan import applications, borrowers, predictions
+
+logger = logging.getLogger("uvicorn.error")
 
 
 async def borrower_exists(borrower_id: int) -> bool:
@@ -81,10 +84,13 @@ async def create_prediction(application) -> dict:
         "previous_loans": previous_loans,
         "late_payments": borrower["late_payments"],
     })
+    version = await scoring.model_version()
+    logger.info("prediction application_id=%s probability=%.4f model_version=%s",
+                application["id"], probability, version)
     query = predictions.insert().values(
         application_id=application["id"],
         default_probability=probability,
-        model_version=await scoring.model_version(),
+        model_version=version,
     )
     prediction_id = await database.execute(query)
     return await database.fetch_one(
